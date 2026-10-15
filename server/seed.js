@@ -1,13 +1,18 @@
 require('dotenv').config();
 const mongoose = require('mongoose'), bcrypt = require('bcryptjs');
-const { User, Patient, Appointment, Treatment, Invoice, Item } = require('./models');
+const { User, Patient, Visit, Appointment, Treatment, Invoice, Item } = require('./models');
 const d = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 (async () => {
   await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/dentalsaas');
-  await Promise.all([User, Patient, Appointment, Treatment, Invoice, Item].map(m => m.deleteMany()));
+  await Promise.all([User, Patient, Visit, Appointment, Treatment, Invoice, Item].map(m => m.deleteMany()));
   await User.create({ name: 'Dr. S. Mehta', email: 'dr.smith@dentalsaas.com', password: await bcrypt.hash('smile123', 10) });
   const names = ['Aarav Nair', 'Diya Kapoor', 'Rohan Mehta', 'Ananya Iyer'];
-  await Patient.insertMany(names.map((name, i) => ({ name, age: 22 + i * 9, phone: '98' + (10000000 + i * 1234567), history: 'No known allergies' })));
+  const patients = await Patient.insertMany(names.map((name, i) => ({ name, age: 22 + i * 9, phone: '98' + (10000000 + i * 1234567), history: 'No known allergies' })));
+  await Visit.insertMany([
+    { patient: patients[0]._id, date: d(-90), reason: 'Routine dental check-up', prescription: 'Chlorhexidine mouthwash, use as directed.', notes: 'Routine examination. Advised twice-daily brushing and six-month follow-up.' },
+    { patient: patients[0]._id, date: d(-30), reason: 'Sensitivity consultation', prescription: 'Desensitising toothpaste, twice daily for two weeks.', notes: 'Mild sensitivity reported. Review if symptoms continue.' },
+    { patient: patients[1]._id, date: d(-60), reason: 'Teeth cleaning', prescription: 'No medication prescribed.', notes: 'Scaling completed. Oral hygiene instructions provided.' },
+  ]);
   const types = ['Routine Check-up', 'Teeth Cleaning', 'Tooth Filling', 'Orthodontic Consultation'], times = ['09:00', '10:30', '12:00', '14:00'];
   await Appointment.insertMany(names.map((patient, i) => ({ patient, date: d(i > 1 ? i - 1 : 0), time: times[i], type: types[i], status: i % 2 === 0 ? 'Booked' : 'Confirmed' })));
   const procs = ['Teeth Cleaning', 'Tooth Filling', 'Root Canal', 'Wisdom Tooth Extraction', 'Teeth Whitening', 'Crown Consultation'];

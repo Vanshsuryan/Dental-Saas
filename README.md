@@ -6,12 +6,12 @@ A dental clinic management demo tailored to Indian practices. It includes appoin
 
 - **Dashboard:** patient and appointment counts, pending treatments, monthly paid revenue, upcoming appointments, and low-stock alerts.
 - **Appointments:** create appointments and update their status (Booked, Confirmed, Completed, or Cancelled).
-- **Patients:** manage patient names, ages, phone numbers, and medical history.
-- **Treatments:** record procedures, clinical notes, follow-up dates, and Pending/Done status.
-- **Billing:** create invoices in Indian rupees (INR), record an insurer or Self Pay, and update Unpaid/Paid status.
+- **Patients:** manage patient names, ages, phone numbers, and medical history; open each patient's visit notebook to review or record visit dates, prescriptions, and clinical notes.
+- **Patient visit notebooks:** keep visit dates, treatment details, prescriptions, and clinical notes together in each patient record.
+- **Billing:** create itemized invoices in Indian rupees (INR), optionally enter a GST rate per bill, record an insurer or Self Pay, update Unpaid/Paid status, and preview or print bills.
 - **Inventory:** maintain item quantities and reorder thresholds; edit quantities directly or use **Use 1** to record consumption.
-- **Reports:** view monthly revenue and treatment mix.
-- **AI Assistant:** ask about clinic schedule, revenue, pending treatments, and low stock. It works with built-in rule-based responses; an Anthropic API key enables Claude responses.
+- **Reports:** view monthly revenue and treatment mix, plus a new-patient registrations bar chart filtered by date range and grouped by day, week, or month.
+- **AI Assistant:** with a Gemini API key, ask a broad range of questions, including clinic metrics and general oral-health education. Without a key, a limited rule-based assistant remains available. It does not diagnose or prescribe.
 
 This is a starter/demo application, not a complete clinical or accounting system. Review its security, privacy, backup, and regulatory requirements before using it with real patient information.
 
@@ -83,12 +83,15 @@ Edit `server/.env` if needed:
 MONGO_URI=mongodb://127.0.0.1:27017/dentalsaas
 JWT_SECRET=replace-this-with-a-long-random-secret
 PORT=5000
-ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 - Keep `MONGO_URI` pointed at the local database or replace it with the Atlas URI.
 - Use a unique, long random value for `JWT_SECRET`; do not use the example value for a deployed app.
-- `ANTHROPIC_API_KEY` is optional. Leave it blank to use the built-in assistant.
+- `GEMINI_API_KEY` is optional. Create a key through [Google AI Studio](https://aistudio.google.com/app/apikey) and keep it private in `server/.env`; the server never sends it to the frontend.
+- `GEMINI_MODEL` is optional. The default is `gemini-3.5-flash-lite`; use a model enabled for your AI Studio project. Free-tier availability, model access, rate limits, and terms depend on Google's current policy and your project.
+- Clinic metric questions are answered locally. Gemini receives only other general questions; the integration sets `store: false` and does not send clinic stats or patient/appointment data. Do not include patient names, contact details, prescriptions, or other identifiable health information in questions. Review Google's current data-use terms before using the service.
 
 ### 3. Seed the demo data
 
@@ -149,6 +152,7 @@ All routes other than login require a JWT. The frontend adds the token as a Bear
 | `POST` | `/api/auth/login` | Sign in; returns a token and user name |
 | `GET`, `POST` | `/api/patients` | List or add patients |
 | `PUT`, `DELETE` | `/api/patients/:id` | Edit or remove a patient |
+| `GET`, `POST` | `/api/patients/:id/visits` | List or record a patient's visit, prescription, and clinical notes |
 | `GET`, `POST` | `/api/appointments` | List or book appointments |
 | `PUT`, `DELETE` | `/api/appointments/:id` | Edit appointment details/status or remove an appointment |
 | `GET`, `POST` | `/api/treatments` | List or add treatment records |
@@ -160,7 +164,7 @@ All routes other than login require a JWT. The frontend adds the token as a Bear
 | `GET` | `/api/stats` | Dashboard and report summary data |
 | `POST` | `/api/ai` | Ask the clinic assistant (`{ "q": "..." }`) |
 
-Dates are stored as `YYYY-MM-DD` strings and appointment times as 24-hour `HH:mm` strings. Currency amounts are rupees.
+Dates are stored as `YYYY-MM-DD` strings and appointment times as 24-hour `HH:mm` strings. Currency amounts are rupees. New invoices store the pre-tax subtotal, optional GST rate and amount, and the final total. The GST rate is blank/0% unless entered; confirm the applicable tax treatment with a qualified accountant before issuing real invoices. A printed bill uses the configured demo clinic name and does not yet include a clinic address, GSTIN, or other statutory invoice details. The demo seed includes a few example patient visits with sample notes and prescriptions. Existing treatment records still contribute to the dashboard's pending-treatment metric.
 
 ## Database notes
 
@@ -174,7 +178,7 @@ The `mongodb-memory-server` development dependency can provide an in-memory Mong
 - **Login fails:** run `npm run seed` from `server` to recreate the demo account. This replaces all sample collections, so only do this on a disposable demo database.
 - **Frontend cannot reach the API:** start the backend on port `5000`; check that the Vite proxy in `client/vite.config.js` points to the same host and port.
 - **Port already in use:** choose another backend `PORT` in `server/.env` and update the Vite proxy in `client/vite.config.js`, or stop the process already using that port.
-- **AI uses simple built-in replies:** configure a valid `ANTHROPIC_API_KEY` in `server/.env` and restart the backend to enable the optional Claude integration.
+- **AI uses simple built-in replies:** configure a valid `GEMINI_API_KEY` in `server/.env` and restart the backend. If Gemini reports an error, check the key, configured model, project access, and current quota.
 
 ## Deployment notes
 
