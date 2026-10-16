@@ -6,6 +6,27 @@ const CLINIC_NAME = 'SmileCraft Dental Clinic';
 const inr = n => '₹' + (n || 0).toLocaleString('en-IN');
 const INDIAN_INSURERS = ['Star Health', 'Care Health', 'Max Bupa', 'Niva Bupa', 'ICICI Lombard', 'Self Pay'];
 const APPOINTMENT_STATUS = ['Booked', 'Confirmed', 'Completed', 'Cancelled'];
+const NAV_ITEMS = [
+  ['Dashboard', 'dashboard'], ['Appointments', 'calendar'], ['Patients', 'patients'],
+  ['Billing', 'billing'], ['Inventory', 'inventory'], ['Reports', 'reports'],
+  ['AI Assistant', 'assistant'],
+];
+function Icon({ name, size = 20 }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="5" rx="1.5" /><rect x="13" y="10" width="8" height="11" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></>,
+    patients: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    billing: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h8M8 15h3M15 15h1M8 18h3" /></>,
+    inventory: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v4" /></>,
+    reports: <><path d="M4 19V5M4 19h17" /><path d="m7 15 4-4 3 2 5-6" /><path d="M17 7h2v2" /></>,
+    assistant: <><path d="M12 3a8 8 0 0 0-4.2 14.8L7 21l4-2a8 8 0 1 0 1-16Z" /><path d="M9 10h.01M12 10h.01M15 10h.01M9 14h6" /></>,
+    patientsCount: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 11a3 3 0 1 0 0-6M18 14a5 5 0 0 1 3 5v1" /></>,
+    rupee: <><path d="M6 4h12M6 8h12M8 4c4 0 6 1.8 6 4s-2 4-6 4h-.5L16 20" /></>,
+    tooth: <><path d="M12 4c-2-2-7-1-8 3-1 5 2 14 5 14 2 0 1-7 3-7s1 7 3 7c3 0 6-9 5-14-1-4-6-5-8-3Z" /></>,
+  };
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" {...common}>{paths[name] || paths.dashboard}</svg>;
+}
 const RESOURCES = {
   Appointments: { path: 'appointments', fields: [['patient', 'Patient'], ['date', 'Date', 'date'], ['time', 'Time', 'time'], ['type', 'Type'], ['status', 'Status', APPOINTMENT_STATUS]] },
   Inventory: { path: 'inventory', fields: [['name', 'Item'], ['qty', 'In stock', 'number'], ['minQty', 'Reorder at', 'number']] },
@@ -40,6 +61,7 @@ function Login({ onDone }) {
       : { name: '', email: 'dr.smith@dentalsaas.com', phone: '', password: 'smile123' });
   };
   return <div className="login"><form className="card" onSubmit={go}>
+    <img className="clinic-logo login-logo" src="/clinic-logo.png" alt={`${CLINIC_NAME} logo`} />
     <h1>{CLINIC_NAME}</h1><p className="muted">Appointments and patient care for your Indian dental practice</p>
     <div className="auth-mode"><button type="button" className={!registering ? '' : 'ghost'} onClick={() => changeMode(false)}>Sign in</button><button type="button" className={registering ? '' : 'ghost'} onClick={() => changeMode(true)}>Patient registration</button></div>
     {registering && <input required autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Full name" />}
@@ -301,10 +323,32 @@ function Billing() {
 }
 
 function Dashboard({ s }) {
-  const cards = [['Today\'s appointments', s.todayAppointments, '#2f6fed'], ['Total patients', s.patients, '#12b886'], ['Pending treatments', s.pendingTreatments, '#7c5cff'], ['Monthly revenue', inr(s.monthlyRevenue), '#f0525a']];
-  return <><h2>Dashboard</h2><div className="grid4">{cards.map(([l, v, c]) => <div key={l} className="stat" style={{ background: c }}><b>{v}</b><span>{l}</span></div>)}</div>
-    <div className="grid2"><div className="card"><h3>Upcoming appointments</h3>{s.upcoming.map((a, i) => <div className="row" key={i}><span>{a.time}</span><b>{a.patient}</b><span className="tag">{a.type}</span></div>)}</div>
-      <div className="card"><h3>Low stock</h3>{s.lowStock.length ? s.lowStock.map(x => <div className="row" key={x}>{x}</div>) : <p className="muted">All clinical supplies are well stocked.</p>}</div></div></>;
+  const cards = [
+    ['Today’s appointments', s.todayAppointments, 'calendar', 'Appointments scheduled today'],
+    ['Total patients', s.patients, 'patientsCount', 'Registered patient records'],
+    ['Pending treatments', s.pendingTreatments, 'tooth', 'Require follow-up'],
+    ['Monthly revenue', inr(s.monthlyRevenue), 'rupee', 'Paid invoices this month'],
+  ];
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return <>
+    <header className="dashboard-heading"><div><p className="eyebrow">CLINIC OVERVIEW</p><h1>Good day, {localStorage.name || 'Doctor'}</h1><p className="muted">Here’s your practice summary for today.</p></div><span className="dashboard-date"><Icon name="calendar" size={17} />{today}</span></header>
+    <div className="grid4 dashboard-stats">{cards.map(([label, value, icon, detail]) => <article key={label} className="stat">
+      <div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon name={icon} size={19} /></span></div>
+      <strong>{value}</strong><span className="stat-detail">{detail}</span>
+    </article>)}</div>
+    <div className="dashboard-panels">
+      <section className="card dashboard-panel"><div className="panel-heading"><div><h2>Upcoming appointments</h2><p className="muted">Your next scheduled visits</p></div><span className="panel-count">{s.upcoming.length}</span></div>
+        {s.upcoming.length ? <div className="appointment-list">{s.upcoming.map((appointment, i) => <article className="appointment-item" key={appointment._id || i}>
+          <div className="appointment-time">{appointment.time}</div><div className="appointment-info"><strong>{appointment.patient}</strong><span>{appointment.type}</span></div>
+          <span className={'tag ' + String(appointment.status || 'Booked').toLowerCase()}>{appointment.status || 'Booked'}</span>
+        </article>)}</div> : <p className="muted empty-state">No upcoming appointments.</p>}
+      </section>
+      <section className="card dashboard-panel"><div className="panel-heading"><div><h2>Inventory alerts</h2><p className="muted">Items at or below reorder level</p></div><span className="panel-count">{s.lowStock.length}</span></div>
+        {s.lowStock.length ? <div className="stock-list">{s.lowStock.map(item => <div className="stock-item" key={item}><span className="stock-dot" /><span>{item}</span></div>)}
+        </div> : <p className="healthy-stock"><span className="healthy-dot" />All clinical supplies are well stocked.</p>}
+      </section>
+    </div>
+  </>;
 }
 const dateValue = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const parseDateValue = value => {
@@ -365,12 +409,12 @@ function Reports({ s }) {
       </div>
     </div>
     {patientError ? <p className="err" role="alert">{patientError}</p> : startDate > endDate ? <p className="muted">Choose a valid date range.</p> :
-      <div className="patient-chart"><Bar data={{ labels: periods.map(period => period.label), datasets: [{ label: 'Appointments', data: periods.map(period => appointmentCounts.get(period.key) || 0), backgroundColor: '#14b8a6', borderRadius: 5, maxBarThickness: 42 }] }}
-        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a6b5c9', maxRotation: 45, minRotation: 0 }, grid: { color: 'rgba(166,181,201,.08)' } }, y: { beginAtZero: true, ticks: { precision: 0, color: '#a6b5c9' }, grid: { color: 'rgba(166,181,201,.12)' } } } }} /></div>}
+      <div className="patient-chart"><Bar data={{ labels: periods.map(period => period.label), datasets: [{ label: 'Appointments', data: periods.map(period => appointmentCounts.get(period.key) || 0), backgroundColor: '#7c4199', borderRadius: 5, maxBarThickness: 42 }] }}
+        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#74677b', maxRotation: 45, minRotation: 0 }, grid: { color: 'rgba(124,65,153,.07)' } }, y: { beginAtZero: true, ticks: { precision: 0, color: '#74677b' }, grid: { color: 'rgba(124,65,153,.12)' } } } }} /></div>}
   </div>
   <div className="grid2">
-    <div className="card"><h3>Revenue by month</h3><Bar data={{ labels: rev.map(r => r[0]), datasets: [{ data: rev.map(r => r[1]), backgroundColor: '#2f6fed', borderRadius: 6 }] }} options={{ plugins: { legend: { display: false } } }} /></div>
-    <div className="card"><h3>Treatment mix</h3><Doughnut data={{ labels: mix.map(m => m[0]), datasets: [{ data: mix.map(m => m[1]), backgroundColor: ['#2f6fed', '#12b886', '#7c5cff', '#f0525a', '#f59f00'] }] }} /></div></div></>;
+    <div className="card"><h3>Revenue by month</h3><Bar data={{ labels: rev.map(r => r[0]), datasets: [{ data: rev.map(r => r[1]), backgroundColor: '#9b63b2', borderRadius: 6 }] }} options={{ plugins: { legend: { display: false } } }} /></div>
+    <div className="card"><h3>Treatment mix</h3><Doughnut data={{ labels: mix.map(m => m[0]), datasets: [{ data: mix.map(m => m[1]), backgroundColor: ['#7c4199', '#c98ae3', '#a865c1', '#e5c3f2', '#9b63b2'] }] }} /></div></div></>;
 }
 function PatientPortal({ name, onSignOut }) {
   const emptyBooking = () => ({ date: todayDate(), time: '', type: '' });
@@ -393,7 +437,7 @@ function PatientPortal({ name, onSignOut }) {
   };
   return <div className="patient-portal">
     <header className="portal-header">
-      <div><p className="muted">{CLINIC_NAME}</p><h1>Welcome, {name}</h1><p>Book a visit and track your appointment requests.</p></div>
+      <div className="portal-welcome"><img className="clinic-logo portal-logo" src="/clinic-logo.png" alt={`${CLINIC_NAME} logo`} /><div><h1>Welcome, {name}</h1><p>Book a visit and track your appointment requests.</p></div></div>
       <button className="ghost" onClick={onSignOut}>Sign out</button>
     </header>
     <div className="portal-grid">
@@ -456,8 +500,7 @@ export default function App() {
   if (!authed) return <Login onDone={user => { setRole(user.role); setAuthed(true); }} />;
   const signOut = () => { localStorage.clear(); setAuthed(false); setRole('doctor'); };
   if (role === 'patient') return <PatientPortal name={localStorage.name} onSignOut={signOut} />;
-  const tabs = ['Dashboard', 'Appointments', 'Patients', 'Billing', 'Inventory', 'Reports', 'AI Assistant'];
-  return <div className="app"><nav><div className="brand">{CLINIC_NAME}</div>{tabs.map(t => <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}
+  return <div className="app"><nav><div className="brand"><img className="clinic-logo nav-logo" src="/clinic-logo-sidebar.png" alt={`${CLINIC_NAME} logo`} /></div>{NAV_ITEMS.map(([label, icon]) => <button key={label} className={`nav-link ${label === tab ? 'on' : ''}`} onClick={() => setTab(label)}><Icon name={icon} size={19} /><span>{label}</span></button>)}
     <button className="out" onClick={signOut}>Sign out</button></nav>
     <main><p className="muted">Welcome back, {localStorage.name}</p>
       {tab === 'Dashboard' && s && <Dashboard s={s} />}{tab === 'Reports' && s && <Reports s={s} />}{tab === 'AI Assistant' && <Assistant />}
