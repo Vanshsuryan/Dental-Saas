@@ -6,11 +6,12 @@ A dental clinic management demo tailored to Indian practices. It includes appoin
 
 - **Dashboard:** patient and appointment counts, pending treatments, monthly paid revenue, upcoming appointments, and low-stock alerts.
 - **Appointments:** create appointments and update their status (Booked, Confirmed, Completed, or Cancelled).
+- **Patient portal:** patients can register/login, request appointments, and see whether staff have confirmed them. Patient requests are always created as **Booked**; only doctor/staff accounts can manage or confirm appointments.
 - **Patients:** manage patient names, ages, phone numbers, and medical history; open each patient's visit notebook to review or record visit dates, prescriptions, and clinical notes.
 - **Patient visit notebooks:** keep visit dates, treatment details, prescriptions, and clinical notes together in each patient record.
 - **Billing:** create itemized invoices in Indian rupees (INR), optionally enter a GST rate per bill, record an insurer or Self Pay, update Unpaid/Paid status, and preview or print bills.
 - **Inventory:** maintain item quantities and reorder thresholds; edit quantities directly or use **Use 1** to record consumption.
-- **Reports:** view monthly revenue and treatment mix, plus a new-patient registrations bar chart filtered by date range and grouped by day, week, or month.
+- **Reports:** view monthly revenue and treatment mix, plus an appointments bar chart filtered by date range and grouped by day, week, or month.
 - **AI Assistant:** with a Gemini API key, ask a broad range of questions, including clinic metrics and general oral-health education. Without a key, a limited rule-based assistant remains available. It does not diagnose or prescribe.
 
 This is a starter/demo application, not a complete clinical or accounting system. Review its security, privacy, backup, and regulatory requirements before using it with real patient information.
@@ -110,6 +111,15 @@ Email:    dr.smith@dentalsaas.com
 Password: smile123
 ```
 
+Demo patient portal login:
+
+```text
+Email:    aarav.patient@dentalsaas.com
+Password: patient123
+```
+
+Patients can also choose **Patient registration** on the sign-in page to create a patient account. New patient accounts are linked to a patient record and can only see their own appointment requests.
+
 ### 4. Start the API
 
 Keep the terminal in `server` and run:
@@ -150,11 +160,13 @@ All routes other than login require a JWT. The frontend adds the token as a Bear
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/auth/login` | Sign in; returns a token and user name |
+| `POST` | `/api/auth/patient/register` | Register a patient account and patient record |
 | `GET`, `POST` | `/api/patients` | List or add patients |
 | `PUT`, `DELETE` | `/api/patients/:id` | Edit or remove a patient |
 | `GET`, `POST` | `/api/patients/:id/visits` | List or record a patient's visit, prescription, and clinical notes |
 | `GET`, `POST` | `/api/appointments` | List or book appointments |
 | `PUT`, `DELETE` | `/api/appointments/:id` | Edit appointment details/status or remove an appointment |
+| `GET`, `POST` | `/api/patient/appointments` | Patient-only: list the signed-in patient's requests or create a new request (always Booked pending staff confirmation) |
 | `GET`, `POST` | `/api/treatments` | List or add treatment records |
 | `PUT`, `DELETE` | `/api/treatments/:id` | Edit or remove a treatment |
 | `GET`, `POST` | `/api/invoices` | List or add invoices |
@@ -165,6 +177,8 @@ All routes other than login require a JWT. The frontend adds the token as a Bear
 | `POST` | `/api/ai` | Ask the clinic assistant (`{ "q": "..." }`) |
 
 Dates are stored as `YYYY-MM-DD` strings and appointment times as 24-hour `HH:mm` strings. Currency amounts are rupees. New invoices store the pre-tax subtotal, optional GST rate and amount, and the final total. The GST rate is blank/0% unless entered; confirm the applicable tax treatment with a qualified accountant before issuing real invoices. A printed bill uses the configured demo clinic name and does not yet include a clinic address, GSTIN, or other statutory invoice details. The demo seed includes a few example patient visits with sample notes and prescriptions. Existing treatment records still contribute to the dashboard's pending-treatment metric.
+
+Clinic-wide records and doctor routes require a doctor account. Patient access is limited to the patient's own appointment list and appointment-request endpoint. Patient booking requests are created as `Booked`; a doctor/staff member must update the appointment status from the doctor dashboard to confirm them.
 
 ## Database notes
 

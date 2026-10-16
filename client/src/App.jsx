@@ -12,12 +12,44 @@ const RESOURCES = {
 };
 
 function Login({ onDone }) {
-  const [f, setF] = useState({ email: 'dr.smith@dentalsaas.com', password: 'smile123' }), [err, setErr] = useState('');
-  const go = async () => { try { const d = await api('auth/login', 'POST', f); localStorage.token = d.token; localStorage.name = d.name; onDone(); } catch (e) { setErr(e.message); } };
-  return <div className="login"><div className="card"><h1>{CLINIC_NAME}</h1><p className="muted">Manage appointments, billing and patient care for your Indian dental practice</p>
-    <input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} placeholder="Email" />
-    <input type="password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder="Password" />
-    {err && <p className="err">{err}</p>}<button onClick={go}>Sign in</button></div></div>;
+  const [registering, setRegistering] = useState(false);
+  const [f, setF] = useState({ name: '', email: 'dr.smith@dentalsaas.com', phone: '', password: 'smile123' });
+  const [err, setErr] = useState('');
+  const go = async e => {
+    e.preventDefault();
+    setErr('');
+    try {
+      const d = registering
+        ? await api('auth/patient/register', 'POST', f)
+        : await api('auth/login', 'POST', { email: f.email, password: f.password });
+      localStorage.token = d.token;
+      localStorage.name = d.name;
+      localStorage.role = d.role;
+      if (d.patientId) localStorage.patientId = d.patientId;
+      else localStorage.removeItem('patientId');
+      onDone(d);
+    } catch (error) {
+      setErr(error.message);
+    }
+  };
+  const changeMode = next => {
+    setRegistering(next);
+    setErr('');
+    setF(next
+      ? { name: '', email: '', phone: '', password: '' }
+      : { name: '', email: 'dr.smith@dentalsaas.com', phone: '', password: 'smile123' });
+  };
+  return <div className="login"><form className="card" onSubmit={go}>
+    <h1>{CLINIC_NAME}</h1><p className="muted">Appointments and patient care for your Indian dental practice</p>
+    <div className="auth-mode"><button type="button" className={!registering ? '' : 'ghost'} onClick={() => changeMode(false)}>Sign in</button><button type="button" className={registering ? '' : 'ghost'} onClick={() => changeMode(true)}>Patient registration</button></div>
+    {registering && <input required autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Full name" />}
+    {registering && <input required type="tel" autoComplete="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="Phone number" />}
+    <input required type="email" autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} placeholder="Email" />
+    <input required type="password" autoComplete={registering ? 'new-password' : 'current-password'} minLength={registering ? 8 : undefined} value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder={registering ? 'Create password (8+ characters)' : 'Password'} />
+    {err && <p className="err" role="alert">{err}</p>}
+    <button type="submit">{registering ? 'Create patient account' : 'Sign in'}</button>
+    {!registering && <p className="muted demo-login">Demo doctor: dr.smith@dentalsaas.com / smile123<br />Demo patient: aarav.patient@dentalsaas.com / patient123</p>}
+  </form></div>;
 }
 
 function Resource({ title, path, fields }) {
@@ -288,10 +320,10 @@ function Reports({ s }) {
   const rev = s.revenueByMonth, mix = Object.entries(s.treatmentMix);
   const today = new Date();
   const initialStart = dateValue(addDays(today, -29));
-  const [patients, setPatients] = useState([]), [start, setStart] = useState(initialStart);
+  const [appointments, setAppointments] = useState([]), [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(dateValue(today)), [grouping, setGrouping] = useState('day');
   const [patientError, setPatientError] = useState('');
-  useEffect(() => { api('patients').then(setPatients).catch(e => setPatientError(e.message)); }, []);
+  useEffect(() => { api('appointments').then(setAppointments).catch(e => setPatientError(e.message)); }, []);
   const startDate = parseDateValue(start), endDate = parseDateValue(end);
   const periodStart = date => {
     const result = new Date(date);
@@ -313,19 +345,19 @@ function Reports({ s }) {
       else cursor = addDays(cursor, grouping === 'week' ? 7 : 1);
     }
   }
-  const patientCounts = new Map(periods.map(period => [period.key, 0]));
+  const appointmentCounts = new Map(periods.map(period => [period.key, 0]));
   if (start && end && startDate <= endDate) {
-    patients.forEach(patient => {
-      if (!patient.createdAt) return;
-      const registered = new Date(patient.createdAt);
-      const day = new Date(registered.getFullYear(), registered.getMonth(), registered.getDate());
+    appointments.forEach(appointment => {
+      if (!appointment.date) return;
+      const day = parseDateValue(appointment.date);
+      if (Number.isNaN(day.getTime())) return;
       if (day < startDate || day > endDate) return;
       const key = dateValue(periodStart(day));
-      patientCounts.set(key, (patientCounts.get(key) || 0) + 1);
+      appointmentCounts.set(key, (appointmentCounts.get(key) || 0) + 1);
     });
   }
   return <><h2>Reports</h2><div className="card patient-report">
-    <div className="report-heading"><div><h3>New patient registrations</h3><p className="muted">Patients registered in the selected date range</p></div>
+    <div className="report-heading"><div><h3>Patient appointments</h3><p className="muted">Appointments scheduled in the selected date range</p></div>
       <div className="report-filters">
         <label>From<input type="date" value={start} max={end} onChange={e => setStart(e.target.value)} /></label>
         <label>To<input type="date" value={end} min={start} onChange={e => setEnd(e.target.value)} /></label>
@@ -333,12 +365,67 @@ function Reports({ s }) {
       </div>
     </div>
     {patientError ? <p className="err" role="alert">{patientError}</p> : startDate > endDate ? <p className="muted">Choose a valid date range.</p> :
-      <div className="patient-chart"><Bar data={{ labels: periods.map(period => period.label), datasets: [{ label: 'New patients', data: periods.map(period => patientCounts.get(period.key) || 0), backgroundColor: '#14b8a6', borderRadius: 5, maxBarThickness: 42 }] }}
+      <div className="patient-chart"><Bar data={{ labels: periods.map(period => period.label), datasets: [{ label: 'Appointments', data: periods.map(period => appointmentCounts.get(period.key) || 0), backgroundColor: '#14b8a6', borderRadius: 5, maxBarThickness: 42 }] }}
         options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a6b5c9', maxRotation: 45, minRotation: 0 }, grid: { color: 'rgba(166,181,201,.08)' } }, y: { beginAtZero: true, ticks: { precision: 0, color: '#a6b5c9' }, grid: { color: 'rgba(166,181,201,.12)' } } } }} /></div>}
   </div>
   <div className="grid2">
     <div className="card"><h3>Revenue by month</h3><Bar data={{ labels: rev.map(r => r[0]), datasets: [{ data: rev.map(r => r[1]), backgroundColor: '#2f6fed', borderRadius: 6 }] }} options={{ plugins: { legend: { display: false } } }} /></div>
     <div className="card"><h3>Treatment mix</h3><Doughnut data={{ labels: mix.map(m => m[0]), datasets: [{ data: mix.map(m => m[1]), backgroundColor: ['#2f6fed', '#12b886', '#7c5cff', '#f0525a', '#f59f00'] }] }} /></div></div></>;
+}
+function PatientPortal({ name, onSignOut }) {
+  const emptyBooking = () => ({ date: todayDate(), time: '', type: '' });
+  const [appointments, setAppointments] = useState([]), [form, setForm] = useState(emptyBooking);
+  const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const loadAppointments = async () => setAppointments(await api('patient/appointments'));
+  useEffect(() => { loadAppointments().catch(e => setError(e.message)); }, []);
+  const book = async e => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    try {
+      await api('patient/appointments', 'POST', form);
+      setForm(emptyBooking());
+      await loadAppointments();
+      setNotice('Appointment request sent. It will be confirmed by clinic staff.');
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+  return <div className="patient-portal">
+    <header className="portal-header">
+      <div><p className="muted">{CLINIC_NAME}</p><h1>Welcome, {name}</h1><p>Book a visit and track your appointment requests.</p></div>
+      <button className="ghost" onClick={onSignOut}>Sign out</button>
+    </header>
+    <div className="portal-grid">
+      <form className="card portal-booking" onSubmit={book}>
+        <h2>Request an appointment</h2>
+        <p className="muted">Your request will stay booked until clinic staff confirms it.</p>
+        <label>Date<input required type="date" min={todayDate()} value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label>
+        <label>Available time
+          <select required value={form.time} onChange={e => setForm({ ...form, time: e.target.value })}>
+            <option value="">Select a time</option>
+            {['09:00', '10:30', '12:00', '14:00', '16:00'].map(time => <option key={time} value={time}>{time}</option>)}
+          </select>
+        </label>
+        <label>Reason for visit
+          <select required value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+            <option value="">Select a reason</option>
+            {['Routine Check-up', 'Dental Pain', 'Teeth Cleaning', 'Tooth Filling', 'Orthodontic Consultation', 'Other'].map(type => <option key={type}>{type}</option>)}
+          </select>
+        </label>
+        {error && <p className="err" role="alert">{error}</p>}
+        {notice && <p className="portal-notice" role="status">{notice}</p>}
+        <button type="submit">Request appointment</button>
+      </form>
+      <section className="card portal-appointments">
+        <h2>My appointments</h2>
+        {appointments.length ? appointments.map(appointment => <article className="portal-appointment" key={appointment._id}>
+          <div><strong>{appointment.date} at {appointment.time}</strong><p>{appointment.type}</p></div>
+          <span className={'tag ' + String(appointment.status || 'Booked').toLowerCase()}>{appointment.status || 'Booked'}</span>
+        </article>) : <p className="muted">You have no appointment requests yet.</p>}
+      </section>
+    </div>
+  </div>;
 }
 function Assistant() {
   const [msgs, setMsgs] = useState([{ r: 'ai', t: 'Hi Doctor. I can answer questions about clinic activity and share general oral-health information. For personal diagnosis or treatment advice, please examine the patient or refer to a dentist.' }]), [q, setQ] = useState('');
@@ -361,12 +448,17 @@ function Assistant() {
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(!!localStorage.token), [tab, setTab] = useState('Dashboard'), [s, setS] = useState(null);
-  useEffect(() => { if (authed) api('stats').then(setS); }, [authed, tab]);
-  if (!authed) return <Login onDone={() => setAuthed(true)} />;
+  const [authed, setAuthed] = useState(!!localStorage.token), [role, setRole] = useState(localStorage.role || 'doctor');
+  const [tab, setTab] = useState('Dashboard'), [s, setS] = useState(null);
+  useEffect(() => {
+    if (authed && role === 'doctor') api('stats').then(setS).catch(() => setS(null));
+  }, [authed, role, tab]);
+  if (!authed) return <Login onDone={user => { setRole(user.role); setAuthed(true); }} />;
+  const signOut = () => { localStorage.clear(); setAuthed(false); setRole('doctor'); };
+  if (role === 'patient') return <PatientPortal name={localStorage.name} onSignOut={signOut} />;
   const tabs = ['Dashboard', 'Appointments', 'Patients', 'Billing', 'Inventory', 'Reports', 'AI Assistant'];
   return <div className="app"><nav><div className="brand">{CLINIC_NAME}</div>{tabs.map(t => <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}
-    <button className="out" onClick={() => { localStorage.clear(); setAuthed(false); }}>Sign out</button></nav>
+    <button className="out" onClick={signOut}>Sign out</button></nav>
     <main><p className="muted">Welcome back, {localStorage.name}</p>
       {tab === 'Dashboard' && s && <Dashboard s={s} />}{tab === 'Reports' && s && <Reports s={s} />}{tab === 'AI Assistant' && <Assistant />}
       {tab === 'Billing' && <Billing />}

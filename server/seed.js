@@ -5,9 +5,13 @@ const d = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 (async () => {
   await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/dentalsaas');
   await Promise.all([User, Patient, Visit, Appointment, Treatment, Invoice, Item].map(m => m.deleteMany()));
-  await User.create({ name: 'Dr. S. Mehta', email: 'dr.smith@dentalsaas.com', password: await bcrypt.hash('smile123', 10) });
+  await User.create({ name: 'Dr. S. Mehta', email: 'dr.smith@dentalsaas.com', password: await bcrypt.hash('smile123', 10), role: 'doctor' });
   const names = ['Aarav Nair', 'Diya Kapoor', 'Rohan Mehta', 'Ananya Iyer'];
   const patients = await Patient.insertMany(names.map((name, i) => ({ name, age: 22 + i * 9, phone: '98' + (10000000 + i * 1234567), history: 'No known allergies' })));
+  await User.create({
+    name: patients[0].name, email: 'aarav.patient@dentalsaas.com',
+    password: await bcrypt.hash('patient123', 10), role: 'patient', patientId: patients[0]._id,
+  });
   await Visit.insertMany([
     { patient: patients[0]._id, date: d(-90), reason: 'Routine dental check-up', prescription: 'Chlorhexidine mouthwash, use as directed.', notes: 'Routine examination. Advised twice-daily brushing and six-month follow-up.' },
     { patient: patients[0]._id, date: d(-30), reason: 'Sensitivity consultation', prescription: 'Desensitising toothpaste, twice daily for two weeks.', notes: 'Mild sensitivity reported. Review if symptoms continue.' },

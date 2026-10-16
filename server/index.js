@@ -9,27 +9,63 @@ const auth = (req, res, next) => {
   try { req.user = jwt.verify((req.headers.authorization || '').replace('Bearer ', ''), SECRET); next(); }
   catch { res.status(401).json({ error: 'Please log in again.' }); }
 };
+const requireDoctor = (req, res, next) => {
+  if (req.user.role !== 'doctor') return res.status(403).json({ error: 'Doctor or staff access is required.' });
+  next();
+};
+const createTokenResponse = user => ({
+  token: jwt.sign({
+    id: user._id, name: user.name, role: user.role,
+    ...(user.patientId ? { patientId: user.patientId } : {}),
+  }, SECRET, { expiresIn: '8h' }),
+  name: user.name, role: user.role, patientId: user.patientId || null,
+});
 app.post('/api/auth/login', async (req, res) => {
-  const u = await User.findOne({ email: req.body.email });
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const u = await User.findOne({ email });
   if (!u || !(await bcrypt.compare(req.body.password || '', u.password))) return res.status(400).json({ error: 'Wrong email or password.' });
-  res.json({ token: jwt.sign({ id: u._id, name: u.name }, SECRET, { expiresIn: '8h' }), name: u.name });
+  res.json(createTokenResponse(u));
+});
+app.post('/api/auth/patient/register', async (req, res) => {
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (!name || !email || !phone || !password) return res.status(400).json({ error: 'Name, email, phone, and password are required.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (await User.exists({ email })) return res.status(409).json({ error: 'An account with this email already exists.' });
+
+  let patient;
+  try {
+    patient = await Patient.create({ name, phone, history: '' });
+    const user = await User.create({
+      name, email, password: await bcrypt.hash(password, 10), role: 'patient', patientId: patient._id,
+    });
+    res.status(201).json(createTokenResponse(user));
+  } catch (error) {
+    if (patient) await Patient.findByIdAndDelete(patient._id);
+    if (error.code === 11000) return res.status(409).json({ error: 'An account with this email already exists.' });
+    console.error('Patient registration failed:', error.message);
+    res.status(500).json({ error: 'Could not create the patient account. Please try again.' });
+  }
 });
 
 const crud = (path, Model, sort = { createdAt: -1 }) => {
-  app.get(`/api/${path}`, auth, async (_, res) => res.json(await Model.find().sort(sort)));
-  app.post(`/api/${path}`, auth, async (req, res) => res.json(await Model.create(req.body)));
-  app.put(`/api/${path}/:id`, auth, async (req, res) => res.json(await Model.findByIdAndUpdate(req.params.id, req.body, { new: true })));
-  app.delete(`/api/${path}/:id`, auth, async (req, res) => { await Model.findByIdAndDelete(req.params.id); res.json({ ok: true }); });
+  app.get(`/api/${path}`, auth, requireDoctor, async (_, res) => res.json(await Model.find().sort(sort)));
+  app.post(`/api/${path}`, auth, requireDoctor, async (req, res) => res.json(await Model.create(req.body)));
+  app.put(`/api/${path}/:id`, auth, requireDoctor, async (req, res) => res.json(await Model.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+  app.delete(`/api/${path}/:id`, auth, requireDoctor, async (req, res) => { await Model.findByIdAndDelete(req.params.id); res.json({ ok: true }); });
 };
 crud('patients', Patient); crud('appointments', Appointment, { date: 1, time: 1 });
 crud('treatments', Treatment); crud('invoices', Invoice); crud('inventory', Item, { name: 1 });
 
-app.get('/api/patients/:id/visits', auth, async (req, res) => {
+app.get('/api/patients/:id/visits', auth, requireDoctor, async (req, res) => {
   const patient = await Patient.findById(req.params.id);
   if (!patient) return res.status(404).json({ error: 'Patient not found.' });
   res.json(await Visit.find({ patient: patient._id }).sort({ date: -1, createdAt: -1 }));
 });
-app.post('/api/patients/:id/visits', auth, async (req, res) => {
+app.post('/api/patients/:id/visits', auth, requireDoctor, async (req, res) => {
   const patient = await Patient.findById(req.params.id);
   if (!patient) return res.status(404).json({ error: 'Patient not found.' });
   if (!req.body.date) return res.status(400).json({ error: 'Visit date is required.' });
@@ -37,6 +73,30 @@ app.post('/api/patients/:id/visits', auth, async (req, res) => {
     patient: patient._id, date: req.body.date, reason: req.body.reason || '',
     prescription: req.body.prescription || '', notes: req.body.notes || '',
   }));
+});
+
+app.get('/api/patient/appointments', auth, async (req, res) => {
+  if (req.user.role !== 'patient' || !req.user.patientId) return res.status(403).json({ error: 'Patient account access is required.' });
+  res.json(await Appointment.find({ patientId: req.user.patientId }).sort({ date: 1, time: 1 }));
+});
+app.post('/api/patient/appointments', auth, async (req, res) => {
+  if (req.user.role !== 'patient' || !req.user.patientId) return res.status(403).json({ error: 'Patient account access is required.' });
+  const { date, time, type } = req.body;
+  const parsedDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? new Date(`${date}T00:00:00Z`) : null;
+  if (!parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+    return res.status(400).json({ error: 'Choose a valid appointment date.' });
+  }
+  const todayInIndia = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  if (date < todayInIndia) return res.status(400).json({ error: 'Appointment date cannot be in the past.' });
+  if (typeof time !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return res.status(400).json({ error: 'Choose a valid appointment time.' });
+  if (typeof type !== 'string' || !type.trim()) return res.status(400).json({ error: 'Choose an appointment reason.' });
+  const patient = await Patient.findById(req.user.patientId);
+  if (!patient) return res.status(404).json({ error: 'Patient profile was not found.' });
+  const appointment = await Appointment.create({
+    patient: patient.name, patientId: patient._id, date, time, type: type.trim(), status: 'Booked',
+  });
+  res.status(201).json(appointment);
 });
 
 async function stats() {
@@ -56,9 +116,9 @@ async function stats() {
     lowStock: items.filter(i => i.qty <= i.minQty).map(i => `${i.name} (${i.qty} left)`),
   };
 }
-app.get('/api/stats', auth, async (_, res) => res.json(await stats()));
+app.get('/api/stats', auth, requireDoctor, async (_, res) => res.json(await stats()));
 
-app.post('/api/ai', auth, async (req, res) => {
+app.post('/api/ai', auth, requireDoctor, async (req, res) => {
   const question = typeof req.body.q === 'string' ? req.body.q.trim() : '';
   if (!question) return res.status(400).json({ error: 'Enter a question for the assistant.' });
   const s = await stats(), q = question.toLowerCase();

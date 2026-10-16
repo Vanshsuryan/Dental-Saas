@@ -61,9 +61,23 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .chat{min-height:260px;display:flex;flex-direction:column;gap:.5rem}.bubble{margin:0;padding:.7rem 1rem;border-radius:14px;max-width:75%}
 .bubble.ai{background:#172a3a;border:1px solid var(--line)}.bubble.me{background:#0f766e;color:#fff;align-self:flex-end}.chips{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
 .ai-privacy{font-size:.85rem;max-width:850px}
-.login{display:grid;place-items:center;min-height:100vh}.login .card{width:340px;display:flex;flex-direction:column;gap:.7rem}.login h1{margin:0;color:var(--blue)}
+.login{display:grid;place-items:center;min-height:100vh;padding:1rem}.login .card{width:min(440px,100%);display:flex;flex-direction:column;gap:.7rem}.login h1{margin:0;color:var(--blue)}
+.auth-mode{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.demo-login{font-size:.82rem;line-height:1.6;margin:.2rem 0 0}
+.patient-portal{max-width:1200px;margin:0 auto;padding:2rem}
+.portal-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1.5rem}
+.portal-header h1{margin:.2rem 0}.portal-header p{margin:.3rem 0}
+.portal-grid{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.2fr);gap:1rem;align-items:start}
+.portal-booking{display:flex;flex-direction:column;gap:.8rem}
+.portal-booking h2,.portal-appointments h2{margin:0}
+.portal-booking>p{margin:0}
+.portal-booking label{display:flex;flex-direction:column;gap:.35rem;font-weight:600;font-size:.9rem}
+.portal-booking input,.portal-booking select{width:100%;flex:auto}
+.portal-notice{margin:0;color:#6ee7b7}
+.portal-appointment{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--line)}
+.portal-appointment:last-child{border-bottom:0}.portal-appointment p{margin:.3rem 0 0;color:#a6b5c9}
 @media(max-width:760px){.app{grid-template-columns:1fr}nav{flex-direction:row;overflow-x:auto}.brand{display:none}main{padding:1rem}.visit-columns{grid-template-columns:1fr}.visit-notebook{padding:1rem}}
 @media(max-width:600px){.report-heading{align-items:stretch;flex-direction:column}.report-filters{align-items:stretch}.report-filters label{flex:1 1 130px}.patient-chart{height:240px}}
+@media(max-width:760px){.patient-portal{padding:1rem}.portal-grid{grid-template-columns:1fr}.portal-header{align-items:flex-start}}
 @media print{
   :root{color-scheme:light}
   body *{visibility:hidden}
