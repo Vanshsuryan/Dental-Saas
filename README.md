@@ -6,7 +6,7 @@ A dental clinic management demo tailored to Indian practices. It includes appoin
 
 - **Dashboard:** patient and appointment counts, pending treatments, monthly paid revenue, upcoming appointments, and low-stock alerts.
 - **Appointments:** create appointments and update their status (Booked, Confirmed, Completed, or Cancelled).
-- **Patient portal:** patients can request, reschedule, and cancel eligible appointments; view their visits, treatment history, clinical notes, and prescription PDFs; review invoice totals and print/save invoice PDFs; and read general post-treatment guidance. Emergency call and WhatsApp links can be configured with `VITE_CLINIC_PHONE`.
+- **Patient portal:** patients can request, reschedule, and cancel eligible appointments; view their visits, treatment history, clinical notes, and prescription PDFs; review invoice totals and print/save invoice PDFs; read general post-treatment guidance; and use the SmileCraft Assistant for navigation and general dental-care FAQs. The patient assistant responds locally and does not send patient records to Gemini. Emergency call and WhatsApp links can be configured with `VITE_CLINIC_PHONE`.
 - **Patients:** manage patient names, ages, and phone numbers; open each patient's visit notebook to review or record visit dates, prescriptions, and clinical notes.
 - **Patient visit notebooks:** keep visit dates, treatment details, prescriptions, and clinical notes together in each patient record.
 - **Billing:** create itemized invoices in Indian rupees (INR), optionally enter a GST rate per bill, record an insurer or Self Pay, update Unpaid/Paid status, and preview or print bills.

@@ -164,6 +164,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .portal-invoice{display:grid;grid-template-columns:minmax(0,1.5fr) auto auto auto;align-items:center;gap:.8rem;padding:1rem 0;border-top:1px solid var(--line)}.portal-invoice p{margin:.25rem 0 0}
 .portal-invoice-modal{z-index:13}
 .portal-reschedule-modal{z-index:12}
+.patient-chat-widget{position:fixed;right:clamp(1rem,3vw,2rem);bottom:calc(1rem + env(safe-area-inset-bottom,0px));z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:.75rem;font-size:.92rem}
+.patient-chat-launcher{width:60px;height:60px;min-height:60px;padding:1rem;border:0;border-radius:50%;background:#71358d;color:#fff;box-shadow:0 8px 24px #31163d40;display:grid;place-items:center}
+.patient-chat-launcher svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}
+.patient-chat-launcher svg path:last-child{stroke-width:3}
+.patient-chat-launcher>span{font-size:2rem;line-height:1}
+.patient-chat-panel{width:min(390px,calc(100vw - 2rem));height:min(590px,calc(100dvh - 7rem));min-height:350px;display:flex;flex-direction:column;overflow:hidden;border:1px solid #e6ddeb;border-radius:18px;background:#fff;box-shadow:0 16px 48px #31163d30}
+.patient-chat-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.85rem 1rem;background:#71358d;color:#fff}
+.patient-chat-header>div{display:flex;align-items:center;gap:.7rem;min-width:0}
+.patient-chat-avatar{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:50%;background:#ffffff26;font-size:.82rem;font-weight:800}
+.patient-chat-header strong,.patient-chat-header small{display:block}
+.patient-chat-header small{margin-top:.15rem;color:#f0e5f4;font-size:.78rem}
+.patient-chat-close{width:44px;height:44px;min-height:44px;padding:0;background:transparent;box-shadow:none;color:#fff;font-size:1.8rem}
+.patient-chat-messages{flex:1;min-height:0;display:flex;flex-direction:column;gap:.75rem;padding:1rem;overflow-y:auto;overscroll-behavior:contain}
+.patient-chat-message{max-width:92%;padding:.7rem .85rem;border-radius:14px;background:#f6f1f8;color:#362b3c;overflow-wrap:anywhere}
+.patient-chat-message.patient{align-self:flex-end;background:#71358d;color:#fff}
+.patient-chat-message p{margin:0;line-height:1.5}
+.patient-chat-action{min-height:44px;margin-top:.65rem;padding:.55rem .8rem;background:#fff;color:#71358d;border:1px solid #d9c4e2;box-shadow:none}
+.patient-chat-handover{display:flex;flex-direction:column;gap:.45rem;margin-top:.65rem}
+.patient-chat-handover a{min-height:44px;display:flex;align-items:center;justify-content:center;padding:.55rem .7rem;border-radius:9px;background:#71358d;color:#fff;font-weight:700;text-align:center;text-decoration:none}
+.patient-chat-handover a+a{background:#e5f6ed;color:#24764a}
+.patient-chat-handover span{font-size:.82rem;line-height:1.45;color:#65566d}
+.patient-chat-prompts{display:flex;gap:.45rem;padding:0 .8rem .7rem;overflow-x:auto;overscroll-behavior-x:contain}
+.patient-chat-prompts button{flex:0 0 auto;min-height:44px;padding:.5rem .7rem;border:1px solid #e6ddeb;border-radius:999px;background:#fff;color:#5b3769;box-shadow:none;font-size:.8rem}
+.patient-chat-compose{display:flex;align-items:center;gap:.5rem;padding:.7rem;border-top:1px solid #eee7f1;background:#fff}
+.patient-chat-compose input{flex:1;min-width:0;min-height:48px;padding:.65rem .8rem;border:1px solid #d9cddd;border-radius:10px;font:inherit}
+.patient-chat-compose button{min-width:64px;min-height:48px;padding:.6rem .8rem}
+.patient-chat-compose button:disabled{cursor:not-allowed;opacity:.55}
 @media(min-width:1441px){.app{grid-template-columns:250px minmax(0,1fr)}main{max-width:1720px;padding:2.75rem 3rem}.grid4{gap:1.15rem}.dashboard-panels{gap:1.25rem}}
 @media(min-width:850px) and (max-width:1024px){.dashboard-panels{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-panel{padding:1rem}.appointment-item{grid-template-columns:58px minmax(0,1fr);gap:.55rem}.appointment-item .tag{grid-column:2}}
 @media(min-width:600px) and (max-width:1024px){.app{grid-template-columns:190px minmax(0,1fr)}nav{padding:1rem .65rem}nav button.nav-link{padding:.7rem .65rem}main{padding:clamp(1rem,2vw,1.75rem)}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.visit-notebook{width:min(100%,1100px)}.visit-columns{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:1rem}.visit-form{max-width:none}}
@@ -175,6 +202,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   :root{color-scheme:light}
   body *{visibility:hidden}
   .invoice-modal,.invoice-print,.invoice-print *{visibility:visible}
+  .patient-chat-widget{display:none!important}
   .invoice-modal{position:static;display:block;inset:auto;padding:0;background:#fff;overflow:visible}
   .invoice-print{position:absolute;inset:0 auto auto 0;width:100%;max-width:none;padding:1rem;border-radius:0;box-shadow:none}
   .no-print{display:none!important}

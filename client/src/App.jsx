@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Chart as C, registerables } from 'chart.js'; import { Bar, Doughnut } from 'react-chartjs-2';
 import { api } from './api.js'; C.register(...registerables);
 
@@ -539,18 +539,34 @@ function Reports({ s }) {
     <div className="card"><h3>Treatment mix</h3><Doughnut data={{ labels: mix.map(m => m[0]), datasets: [{ data: mix.map(m => m[1]), backgroundColor: ['#7c4199', '#c98ae3', '#a865c1', '#e5c3f2', '#9b63b2'] }] }} /></div></div></>;
 }
 function PatientPortal({ name, onSignOut }) {
+  const chatPrompts = [
+    '📅 How do I book an appointment?',
+    '📄 Where can I view my prescriptions & records?',
+    '⏱️ What are clinic timings and location?',
+    '🚨 Emergency dental care tips',
+  ];
   const emptyBooking = () => ({ date: todayDate(), time: '', type: '' });
   const [appointments, setAppointments] = useState([]), [form, setForm] = useState(emptyBooking);
   const [records, setRecords] = useState({ visits: [], treatments: [], invoices: [] });
   const [tab, setTab] = useState('Overview'), [error, setError] = useState(''), [recordsError, setRecordsError] = useState(''), [notice, setNotice] = useState('');
   const [rescheduling, setRescheduling] = useState(null), [rescheduleForm, setRescheduleForm] = useState({ date: todayDate(), time: '' });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const chatMessagesEndRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([{
+    sender: 'assistant',
+    text: 'Hi! I can help you navigate appointments and records, and share general dental-care guidance. I can’t diagnose or replace advice from your dentist.',
+  }]);
   const loadAppointments = async () => setAppointments(await api('patient/appointments'));
   const loadRecords = async () => setRecords(await api('patient/records'));
   useEffect(() => {
     loadAppointments().catch(e => setError(e.message));
     loadRecords().catch(e => setRecordsError(e.message));
   }, []);
+  useEffect(() => {
+    if (chatOpen) chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [chatMessages, chatOpen]);
   const book = async e => {
     e.preventDefault();
     setError('');
@@ -610,6 +626,73 @@ function PatientPortal({ name, onSignOut }) {
   const totalBilled = records.invoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
   const statusLabel = status => status === 'Booked' || status === 'Scheduled' ? 'Pending' : status || 'Pending';
   const canChangeAppointment = appointment => ['Booked', 'Confirmed'].includes(appointment.status || 'Booked') && appointment.date >= todayDate();
+  const answerChat = question => {
+    const text = question.toLowerCase();
+    const urgent = /emergency|urgent|severe|swelling|bleed|bleeding|trauma|knocked|breathing|swallowing|uncontrolled/.test(text);
+    if (urgent) {
+      return {
+        text: 'For difficulty breathing or swallowing, facial swelling, uncontrolled bleeding, or facial trauma, seek urgent professional care now. For other dental emergencies, contact your dentist promptly. I can’t assess symptoms or provide a diagnosis.',
+        handover: true,
+      };
+    }
+    if (/appointment|book|schedule|reschedul|cancel|status|confirm/.test(text)) {
+      if (/status|confirm|cancelled|canceled/.test(text) && appointments.length) {
+        return {
+          text: `Your appointment requests: ${appointments.map(appointment => `${appointment.date} at ${appointment.time} — ${appointment.type}: ${statusLabel(appointment.status)}`).join('; ')}. You can reschedule or cancel eligible future appointments from Overview.`,
+          action: { label: 'Open Overview', tab: 'Overview' },
+        };
+      }
+      return {
+        text: 'To book, open Overview, choose a date, available time, and reason, then select “Request appointment.” New requests are Pending until the clinic confirms them. You can review status and manage eligible future appointments in My appointments.',
+        action: { label: 'Open Overview', tab: 'Overview' },
+      };
+    }
+    if (/record|prescription|medical|treatment|clinical note|history/.test(text)) {
+      return {
+        text: 'Your past visits, treatment history, clinical notes, and prescription PDFs are in the Medical records tab.',
+        action: { label: 'Open Medical records', tab: 'Medical records' },
+      };
+    }
+    if (/bill|invoice|billing|payment|paid|balance/.test(text)) {
+      return {
+        text: 'Your invoice history, payment status, and billing summary are in the Billing tab. Use “Download / print PDF” to print or save an invoice.',
+        action: { label: 'Open Billing', tab: 'Billing' },
+      };
+    }
+    if (/timing|hours|open|location|address|where.*clinic/.test(text)) {
+      return {
+        text: 'Clinic hours and location haven’t been added to this portal yet. Please contact the clinic directly for current details.',
+        handover: true,
+      };
+    }
+    if (/toothache|tooth pain|pain|ache/.test(text)) {
+      return {
+        text: 'For toothache, arrange advice from a dentist, especially if pain is worsening or persistent. Until you receive professional advice, gently rinse with warm salt water and avoid very hot, cold, or sweet foods if they trigger pain. Don’t place aspirin or other medicines directly on the tooth or gums. Seek urgent care for facial swelling, uncontrolled bleeding, or difficulty breathing or swallowing.',
+        handover: true,
+      };
+    }
+    if (/extraction|root canal|after treatment|post.?treatment|aftercare|care after/.test(text)) {
+      return {
+        text: 'Follow the instructions your dentist gave you, including any medication directions. After an extraction, avoid disturbing the site and follow your dentist’s guidance about rinsing, eating, and activity. After a root canal, follow the restoration and follow-up plan. Contact your dentist if symptoms worsen or you’re concerned.',
+      };
+    }
+    if (/hygiene|brush|floss|clean teeth/.test(text)) {
+      return {
+        text: 'General dental-care guidance: brush twice daily with fluoride toothpaste, clean between teeth daily, and attend check-ups as recommended by your dentist. Individual care needs can vary.',
+      };
+    }
+    return {
+      text: 'I can help with appointments, medical records, billing, and general dental-care guidance. For personal symptoms, treatment advice, or another complex question, contact the clinic so its team can help.',
+      handover: true,
+    };
+  };
+  const sendChatMessage = question => {
+    const prompt = question.trim();
+    if (!prompt) return;
+    const response = answerChat(prompt);
+    setChatMessages(current => [...current, { sender: 'patient', text: prompt }, { sender: 'assistant', ...response }]);
+    setChatInput('');
+  };
   return <div className="patient-portal">
     <header className="portal-header">
       <div className="portal-welcome"><img className="clinic-logo portal-logo" src="/clinic-logo.png" alt={`${CLINIC_NAME} logo`} /><div><h1>Welcome, {name}</h1><p>Book a visit and track your appointment requests.</p></div></div>
@@ -717,6 +800,37 @@ function PatientPortal({ name, onSignOut }) {
         <div className="invoice-actions no-print"><button type="button" onClick={printInvoice}>Print / Save as PDF</button><button type="button" className="ghost" onClick={() => setSelectedInvoice(null)}>Close</button></div>
       </article>
     </div>}
+    <aside className={`patient-chat-widget${chatOpen ? ' is-open' : ''}`} aria-label="SmileCraft patient assistant">
+      {chatOpen && <section className="patient-chat-panel" role="dialog" aria-modal="false" aria-label="SmileCraft Assistant">
+        <header className="patient-chat-header">
+          <div><span className="patient-chat-avatar" aria-hidden="true">SC</span><div><strong>SmileCraft Assistant</strong><small>Patient support</small></div></div>
+          <button type="button" className="patient-chat-close" aria-label="Close chat" onClick={() => setChatOpen(false)}>×</button>
+        </header>
+        <div className="patient-chat-messages" aria-live="polite">
+          {chatMessages.map((message, index) => <article className={`patient-chat-message ${message.sender}`} key={index}>
+            <p>{message.text}</p>
+            {message.action && <button type="button" className="patient-chat-action" onClick={() => { setTab(message.action.tab); setChatOpen(false); }}>{message.action.label}</button>}
+            {message.handover && <div className="patient-chat-handover">
+              {emergencyDigits.length >= 8 ? <>
+                <a href={`tel:+${emergencyDigits}`}>Call Clinic</a>
+                <a href={`https://wa.me/${emergencyDigits}`} target="_blank" rel="noopener noreferrer">Contact Support on WhatsApp</a>
+              </> : <span>Clinic phone support is not configured. Please use your clinic’s known contact details. In a life-threatening emergency, contact local emergency services.</span>}
+            </div>}
+          </article>)}
+          <div ref={chatMessagesEndRef} />
+        </div>
+        {chatMessages.length === 1 && <div className="patient-chat-prompts" aria-label="Suggested questions">
+          {chatPrompts.map(prompt => <button type="button" key={prompt} onClick={() => sendChatMessage(prompt)}>{prompt}</button>)}
+        </div>}
+        <form className="patient-chat-compose" onSubmit={event => { event.preventDefault(); sendChatMessage(chatInput); }}>
+          <input aria-label="Message the assistant" value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Ask about appointments or care…" />
+          <button type="submit" aria-label="Send message" disabled={!chatInput.trim()}>Send</button>
+        </form>
+      </section>}
+      <button type="button" className="patient-chat-launcher" aria-label={chatOpen ? 'Close SmileCraft Assistant' : 'Open SmileCraft Assistant'} aria-expanded={chatOpen} onClick={() => setChatOpen(open => !open)}>
+        {chatOpen ? <span aria-hidden="true">×</span> : <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 8 8 0 0 1-3.2-.7L4 20l1.5-4.5a7.5 7.5 0 1 1 14.5-4Z" /><path d="M8 11.5h.01M12 11.5h.01M16 11.5h.01" /></svg>}
+      </button>
+    </aside>
   </div>;
 }
 function Assistant() {
