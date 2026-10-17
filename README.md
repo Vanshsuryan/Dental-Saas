@@ -16,9 +16,7 @@ A dental clinic management demo tailored to Indian practices. It includes appoin
 
 This is a starter/demo application, not a complete clinical or accounting system. Review its security, privacy, backup, and regulatory requirements before using it with real patient information.
 
-## Contributors
 
-- [mohItD4hiya](https://github.com/mohItD4hiya)
 
 ## Technology
 
